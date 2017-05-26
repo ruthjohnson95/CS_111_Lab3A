@@ -1,0 +1,40 @@
+Filesystem volume name:   <none>
+Last mounted on:          /home/ruthjohnson/Desktop/proj_3a/test
+Filesystem UUID:          d5c855f3-1f8b-41a6-b0f9-ff7e990d9451
+Filesystem magic number:  0xEF53
+Filesystem revision #:    1 (dynamic)
+Filesystem features:      ext_attr dir_index filetype sparse_super large_file
+Filesystem flags:         signed_directory_hash 
+Default mount options:    user_xattr acl
+Filesystem state:         not clean
+Errors behavior:          Continue
+Filesystem OS type:       Linux
+Inode count:              24
+Block count:              100
+Reserved block count:     0
+Free blocks:              62
+Free inodes:              8
+First block:              1
+Block size:               1024
+Fragment size:            1024
+Blocks per group:         8192
+Fragments per group:      8192
+Inodes per group:         24
+Inode blocks per group:   3
+Filesystem created:       Tue May 16 19:25:52 2017
+Last mount time:          Wed May 24 23:28:58 2017
+Last write time:          Wed May 24 23:28:58 2017
+Mount count:              2
+Maximum mount count:      -1
+Last checked:             Tue May 16 19:25:52 2017
+Check interval:           0 (<none>)
+Lifetime writes:          25 kB
+Reserved blocks uid:      0 (user root)
+Reserved blocks gid:      0 (group root)
+First inode:              11
+Inode size:	          128
+Default directory hash:   half_md4
+Directory Hash Seed:      e93fb1f5-15ba-4cba-a5f8-af7ddc5fa2dd
+Directories:              3
+ Group  0: block bitmap at 3, inode bitmap at 4, inode table at 5
+           62 free blocks, 8 free inodes, 3 used directories

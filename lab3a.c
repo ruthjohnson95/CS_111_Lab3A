@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdint.h> 
+#include "ext2_fs.h" 
 
 char* filename; 
 int fd;
