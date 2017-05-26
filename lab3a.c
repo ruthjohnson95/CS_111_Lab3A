@@ -231,6 +231,7 @@ void free_blocks_summary()
   for(i=0; i<n_groups; i++)
     {
       struct Group group = group_arr[i];
+      fprintf(stderr, "Free Blocks...\n"); 
 
       // iterate through block 
       int j;
@@ -238,9 +239,25 @@ void free_blocks_summary()
 	{
 	  int offset = group.free_block_num * superblock.block_size + j;
 	  pread(fd, &buffer_8, 1, offset);
-
+	  int8_t bitmask = 1; 
 	  // iterate through the byte
-	  
+	  int k;
+	  for(k=1; k<=8; k++)
+	    {
+	      int result = buffer_8 & bitmask; 
+	      //	      fprintf(stderr, "Result: %d\n", result); 
+	      // check if free ( == 0)
+	      if(result == 0)
+		{
+		  fprintf(stderr,"BFREE,"); 
+		  /* number of the free block */ 
+		  int block_num = (j*8)+k+(i*superblock.blocks_per_group); 
+		  fprintf(stderr, "number of free block: %d\n", block_num); 
+		}
+	      // move bitmask down a bit 
+	      bitmask = bitmask << 1; 
+
+	    }
 
 	}
       
@@ -254,10 +271,37 @@ void free_inode_summary()
   for(i=0; i<n_groups; i++)
     {
       struct Group group = group_arr[i];
+      fprintf(stderr, "Free Inodes...\n");
 
+      // iterate through block
+      int j;
+      for(j=0; j < superblock.block_size;j++)
+        {
+          int offset = group.free_inode_num * superblock.block_size + j;
+          pread(fd, &buffer_8, 1, offset);
+          int8_t bitmask = 1;
+          // iterate through the byte
+          int k;
+          for(k=1; k<=8; k++)
+            {
+              int result = buffer_8 & bitmask;
+              //              fprintf(stderr, "Result: %d\n", result);
+              // check if free ( == 0)
+              if(result == 0)
+                {
+                  fprintf(stderr,"IFREE,");
+                  /* number of the free block */
+                  int block_num = (j*8)+k+(i*superblock.blocks_per_group);
+                  fprintf(stderr, "number of free block: %d\n", block_num);
+                }
+              // move bitmask down a bit
+              bitmask = bitmask << 1;
+
+            }
+
+        }
 
     }
-
 }
 
 void inode_summary()
