@@ -8,6 +8,7 @@
 #include <stdint.h> 
 #include "ext2_fs.h" 
 #include <errno.h>
+#include <time.h>
 
 char* filename; 
 int fd;
@@ -20,9 +21,18 @@ int n_groups =0;
 struct ext2_super_block super_block; 
 struct ext2_group_desc* ext2_group_desc_arr; 
 
-__u32 buffer_32;
-__u16 buffer_16; 
+struct ext2_inode* inode_array; // holds array of inodes info
+int* validInodeIndex_array;
+int validInodeCount = 0;
+int* validDirectoryIndex_array;
+int validDirecotyCount = 0;
+
+
+__u32 buffer_32, buf_u32;
+__u16 buffer_16, buf_u16; 
 __u8  buffer_8;
+__s32 buf_s32;
+__s16 buf_s16;
 
 int blocks_in_group()
 {
@@ -62,8 +72,7 @@ void print_to_csv()
       fprintf(stderr, "free i-node bitmap:: %d\n", ext2_group_desc_arr[i].bg_inode_bitmap);
       fprintf(stderr, "first block i-nodes: %d\n", ext2_group_desc_arr[i].bg_inode_table); 
 
-      fprintf(stdout, "GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", i, blocks_in_group() ,
-              super_block.s_inodes_per_group, ext2_group_desc_arr[i].bg_free_blocks_count, ext2_group_desc_arr[i].bg_free_inodes_count, ext2_group_desc_arr[i].bg_block_bitmap, ext2_group_desc_arr[i].bg_inode_bitmap, ext2_group_desc_arr[i].bg_inode_table);
+      fprintf(stdout, "GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", i, blocks_in_group(),super_block.s_inodes_per_group, ext2_group_desc_arr[i].bg_free_blocks_count, ext2_group_desc_arr[i].bg_free_inodes_count, ext2_group_desc_arr[i].bg_block_bitmap, ext2_group_desc_arr[i].bg_inode_bitmap, ext2_group_desc_arr[i].bg_inode_table);
     }
 
   /* FREE BLOCK ENTRIES */
@@ -95,7 +104,7 @@ void superblock_summary()
   
   /* block size */
   pread(fd, &buffer_32, 4, superblock_offset + 24);
-  int block_size = 1024 << buffer_32;
+  __u32 block_size = 1024 << buffer_32;
   //   superblock.block_size = block_size; 
   super_block.s_log_block_size = EXT2_MIN_BLOCK_SIZE >> block_size;
 
@@ -114,7 +123,11 @@ void superblock_summary()
   /* first non-reserved i-node */
   pread(fd, &buffer_32, 4, superblock_offset + 84);
   super_block.s_first_ino = buffer_32;
+
+   block_size = EXT2_MIN_BLOCK_SIZE << super_block.s_log_block_size;
   
+  fprintf(stdout,"SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n",super_block.s_blocks_count,super_block.s_inodes_count,block_size, super_block.s_inode_size, super_block.s_blocks_per_group, super_block.s_inodes_per_group ,super_block.s_first_ino);
+
 }
 
 void group_summary()
@@ -169,7 +182,8 @@ void group_summary()
 
       /* add group to global array */ 
       ext2_group_desc_arr[i] = group_desc; 
-    }
+      fprintf(stdout, "GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", i, blocks_in_group(),super_block.s_inodes_per_group, ext2_group_desc_arr[i]. bg_free_blocks_count, ext2_group_desc_arr[i].bg_free_inodes_count, ext2_group_desc_arr[i].bg_block_bitmap, ext2_group_desc_arr[i].bg_inode_bitmap, ext2_group_desc_arr[i].bg_inode_table);
+   }
 
 }
 
@@ -181,7 +195,7 @@ void free_blocks_summary()
     {
       struct ext2_group_desc group_desc  = ext2_group_desc_arr[i];
 
-      fprintf(stderr, "Free Blocks...\n"); 
+      //      fprintf(stderr, "Free Blocks...\n"); 
 
       // iterate through block 
       int j;
@@ -222,7 +236,7 @@ void free_inode_summary()
     {
       struct ext2_group_desc group_desc  = ext2_group_desc_arr[i]; 
 
-      fprintf(stderr, "Free Inodes...\n");
+      //      fprintf(stderr, "Free Inodes...\n");
       __u32 block_size = EXT2_MIN_BLOCK_SIZE << super_block.s_log_block_size;
 
       // iterate through block
@@ -258,14 +272,166 @@ void free_inode_summary()
 
 void inode_summary()
 {  
-  // TODO  
+  int num_inodes = super_block.s_inodes_count;
+  int i,j;
+
+  inode_array = malloc (sizeof(struct ext2_inode) * num_inodes);
+  validInodeIndex_array = malloc (sizeof(int)*num_inodes);
+  validDirectoryIndex_array = malloc (sizeof(int)*num_inodes);
+
+  inode_array = malloc (sizeof(struct ext2_inode) * num_inodes);
+  validInodeIndex_array = malloc (sizeof(int)*num_inodes);
+  validDirectoryIndex_array = malloc (sizeof(int)*num_inodes);
+
+  for(i=0; i<n_groups; i++) {
+    // TODOS -- change
+    for (j=0; j< num_inodes; j++) {
+
+      __u32 block_size = EXT2_MIN_BLOCK_SIZE << super_block.s_log_block_size;
+      int offset = ext2_group_desc_arr[i].bg_inode_table * block_size + j* super_block.s_inode_size ;
+
+      //get link count -- 7
+      pread(fd, &buf_u16, 2, offset+26);
+      inode_array[j].i_links_count= buf_u16;
+
+      // get mode  -- 4
+      pread(fd, &buf_u16, 2, offset);
+      inode_array[j].i_mode = buf_u16 & 0x01FF;
+      
+
+      if (inode_array[j].i_mode != 0 && inode_array[j].i_links_count!=0) {
+
+	char c; 
+	if ((buf_u16 & 0x8000) )
+          {
+            c = 'f';
+	    validInodeIndex_array[validInodeCount] = j;
+	    validInodeCount ++;
+
+          }
+	else if ((buf_u16 & 0xA000)) {
+	  c = 's';
+	}
+	else if (buffer_16 & 0x4000){
+	  c = 'd';
+	  validDirectoryIndex_array[validDirecotyCount] = j;
+	  validDirecotyCount ++;
+
+	  validInodeIndex_array[validInodeCount] = j;
+	  validInodeCount ++;
+	}
+	else {
+	  c = '?';
+	}
+
+
+	//getowner -- 5
+	pread(fd, &buf_u16, 2, offset+2);
+	inode_array[j].i_uid = buf_u16;
+
+	// get group --6
+	pread(fd, &buf_u16, 2, offset+24);
+	inode_array[j].i_gid = buf_u16;
+
+	// get time of last I-node change (mm/dd/yy hh:mm:ss, GMT) -- 8
+	pread(fd, &buf_u32, 4, offset+12);
+	inode_array[j].i_ctime = buf_u32;
+	char change_time[80];
+	time_t c_rawtime = (time_t)buf_u32;
+	strftime (change_time,80,"%D %T",gmtime(&c_rawtime));
+      
+	// get time of modification time (mm/dd/yy hh:mm:ss, GMT) -- 9
+	pread(fd, &buf_u32, 4, offset+16);
+	inode_array[j].i_mtime = buf_u32;
+	char mod_time[80];
+	time_t m_rawtime = (time_t)buf_u32;     
+	strftime (mod_time,80,"%D %T",gmtime(&m_rawtime));
+          
+	// get time of last access -- 10
+	pread(fd, &buf_u32, 4, offset+8);
+	inode_array[j].i_atime = buf_u32;
+	char acc_time[80];
+	time_t a_rawtime = (time_t)buf_u32;
+	struct tm timeinfo; 
+	gmtime_r(&a_rawtime, &timeinfo);
+	strftime (acc_time,80,"%D %T",&timeinfo);
+  
+	// get file size (decimal) -- 11
+	pread(fd, &buf_s32, 4, offset+4);
+	inode_array[j].i_size = buf_s32;
+          
+	// get number of blocks (decimal) --12
+	pread(fd, &buf_s32, 4, offset+28);
+	inode_array[j].i_blocks = buf_s32;
+
+	fprintf(stdout, "%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", j+1,c, inode_array[j].i_mode, inode_array[j].i_uid , inode_array[j].i_gid,inode_array[j].i_links_count, change_time, mod_time,acc_time,inode_array[j].i_size, inode_array[j].i_blocks  );
+
+	//print blocks information 
+	int m = 0;
+	pread(fd, &buf_s32, 4, offset+40);
+	//inode_array[j].i_block = buf_s32;
+	for (m=0; m <15; m++){
+	  pread(fd, &buf_s32, 4, offset+40 + m*4);
+	  inode_array[j].i_block[m] = buf_s32;
+	  fprintf(stdout, ",%d", inode_array[j].i_block[m]);
+	}
+	
+	fprintf(stdout, "\n");
+      }
+      
+    }
+    
+  }
+  
 }
 
 
-void directory_summary()
+void directory_block_info (int block_num, int parent_inode_num, int global_offset){
 {
-  // TODO
+  __u32 block_size = EXT2_MIN_BLOCK_SIZE << super_block.s_log_block_size;
+  //find block offset 
+  int block_offset = block_size * block_num;
+  
+  int accumulate_offset = 0;  // the offset within block 
+
+  while ( accumulate_offset + 9 <= block_size) {// the length of rec_len + acc < blcok size 
+  
+    pread (fd, &buf_u16, 2, block_offset+accumulate_offset + 4); 
+    if (buf_u16+ accumulate_offset > block_size){
+      fprintf(stderr, "File is not complete\n");
+      exit(1);
+    }
+    struct ext2_dir_entry * temp_entry = malloc (buf_u16);
+    if (temp_entry == NULL) {
+      fprintf(stderr, "ERROR during malloc\n");
+      exit(2);
+    }
+    pread (fd, temp_entry, buf_u16, block_offset+accumulate_offset); // the temp_entry now has data 
+    
+    if (buf_u16 <= 0){break;}
+
+    accumulate_offset += buf_u16;
+    
+    if ((temp_entry->inode) == 0) break;
+    // print out the entries 
+    fprintf(stderr, "DIRENT,%d,%d,%d,%d,%d,'%s'\n",parent_inode_num, global_offset+accumulate_offset - buf_u16, temp_entry -> inode, temp_entry ->rec_len, temp_entry->name_len, temp_entry ->name);
+    
+  }
+ }
 }
+ void directory_summary() {
+
+   int i, m;
+   for (i =0; i < validDirecotyCount ; i ++){
+
+     for (m = 0; m< 12; m++) {
+
+       int block_num = inode_array[validDirectoryIndex_array[i]].i_block[m];
+       directory_block_info( block_num, validDirectoryIndex_array[i]+1, 0 );
+     }
+    
+   }
+ }
 
 
 void indirect_block_summary()
@@ -314,7 +480,7 @@ int main(int argc, char **argv)
   indirect_block_summary(); 
 
   /* log summary to csv and stderr */ 
-  print_to_csv(); 
+  //  print_to_csv(); 
 
   
   return 0; 
