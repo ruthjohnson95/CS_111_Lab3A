@@ -7,7 +7,6 @@
 #include <fcntl.h>
 #include <stdint.h> 
 #include "ext2_fs.h" 
-#include <errno.h>
 
 char* filename; 
 int fd;
@@ -292,11 +291,6 @@ int main(int argc, char **argv)
 
     fd = open(filename, O_RDONLY);
 
-    if(fd < 0 )
-      {
-	fprintf(stderr, "Error opening file: %s\n", strerror(errno)); 
-	exit(1); 
-      }
 
   /* get summary of file system */ 
   superblock_summary();

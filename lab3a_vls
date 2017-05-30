@@ -7,7 +7,6 @@
 #include <fcntl.h>
 #include <stdint.h> 
 #include "ext2_fs.h" 
-#include <errno.h>
 
 char* filename; 
 int fd;
@@ -17,12 +16,31 @@ int superblock_offset = EXT2_MIN_BLOCK_SIZE;
 int group_table_offset = 32;
 int n_groups =0;
 
+uint32_t buffer_32;
+uint16_t buffer_16; 
+uint8_t buffer_8;
+
+
+
+/* globally hold infor about groups */
+struct Group
+{
+  //  int group_number;
+  //  int n_blocks;  
+  //  int n_inodes; 
+  //  int n_fblocks; // bg_free_inodes_count
+  //  int n_finodes; // bg_free_blocks_count
+  //    int free_block_num; // bg_block_bitmap
+  //  int free_inode_num; // bg_inode_bitmap 
+  //  int first_block_inode; // bg_inode_table
+};
+
+/* OLD IMPLEMENTATIONS */ 
+
+struct Group* group_arr; // hold array of groups' info  
+
 struct ext2_super_block super_block; 
 struct ext2_group_desc* ext2_group_desc_arr; 
-
-__u32 buffer_32;
-__u16 buffer_16; 
-__u8  buffer_8;
 
 int blocks_in_group()
 {
@@ -134,13 +152,55 @@ void group_summary()
 
   
   /* initialize array for groups */
+  group_arr = malloc(n_groups*sizeof(struct Group));
   ext2_group_desc_arr = malloc(n_groups*sizeof(struct ext2_group_desc)); 
 
   int i;
   for(i=0; i<n_groups; i++)
     {
       /* initialize group structs */
+      struct Group group;
       struct ext2_group_desc group_desc;
+
+      /* group number */ 
+      //      group.group_number = i; 
+      
+      /*
+      int num_blocks;
+      double leftover_blocks = n_groups - ((double)super_block.s_blocks_count / super_block.s_blocks_per_group);
+      */
+
+      /* number of blocks in group */
+      /*
+      if(leftover_blocks == 0)
+	{
+	  num_blocks = super_block.s_blocks_per_group;
+	}
+      else
+	{
+	  num_blocks = super_block.s_blocks_per_group - super_block.s_blocks_per_group * leftover_blocks; 
+
+	}
+      */
+
+      //    group.n_blocks = num_blocks; 
+      
+      /* number of inodes in group */
+
+      /*
+      int num_inodes;
+      double leftover_inodes = ((double)super_block.s_inodes_count / super_block.s_inodes_per_group);
+      if(leftover_inodes == 0)
+	{
+	  num_inodes = super_block.s_inodes_per_group; 
+	}
+      else
+	{
+	  num_inodes = super_block.s_inodes_per_group * leftover_inodes; 
+	}
+      */
+
+      //      group.n_inodes = num_inodes; 
 
       /* number of free blocks */ 
       int offset = group_offset + group_table_offset*i + 12; 
@@ -168,6 +228,7 @@ void group_summary()
       group_desc.bg_inode_table = buffer_32; 
 
       /* add group to global array */ 
+      group_arr[i] = group;
       ext2_group_desc_arr[i] = group_desc; 
     }
 
@@ -179,6 +240,7 @@ void free_blocks_summary()
   int i;
   for(i=0; i<n_groups; i++)
     {
+      struct Group group = group_arr[i];
       struct ext2_group_desc group_desc  = ext2_group_desc_arr[i];
 
       fprintf(stderr, "Free Blocks...\n"); 
@@ -220,6 +282,8 @@ void free_inode_summary()
   int i;
   for(i=0; i<n_groups; i++)
     {
+      struct Group group = group_arr[i];
+      
       struct ext2_group_desc group_desc  = ext2_group_desc_arr[i]; 
 
       fprintf(stderr, "Free Inodes...\n");
@@ -292,11 +356,9 @@ int main(int argc, char **argv)
 
     fd = open(filename, O_RDONLY);
 
-    if(fd < 0 )
-      {
-	fprintf(stderr, "Error opening file: %s\n", strerror(errno)); 
-	exit(1); 
-      }
+  /* create csv file */
+    char* out_file = "lab3a.csv";
+    file = open(out_file, O_CREAT | O_WRONLY | O_NONBLOCK, 0666); 
 
   /* get summary of file system */ 
   superblock_summary();
@@ -316,6 +378,7 @@ int main(int argc, char **argv)
   /* log summary to csv and stderr */ 
   print_to_csv(); 
 
+   close(file);
   
   return 0; 
 }
