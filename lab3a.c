@@ -271,7 +271,7 @@ void free_inode_summary()
 }
 
 
-void directory_block_info (int block_num, int parent_inode_num, int global_offset){
+void directory_block_info (int block_num, int parent_inode_num){
 {
   __u32 block_size = EXT2_MIN_BLOCK_SIZE << super_block.s_log_block_size;
   //find block offset 
@@ -299,7 +299,7 @@ void directory_block_info (int block_num, int parent_inode_num, int global_offse
     
     if ((temp_entry->inode) == 0) break;
     // print out the entries 
-    fprintf(stderr, "DIRENT,%d,%d,%d,%d,%d,'%s'\n",parent_inode_num, global_offset+accumulate_offset - buf_u16, temp_entry -> inode, temp_entry ->rec_len, temp_entry->name_len, temp_entry ->name);
+    fprintf(stdout, "DIRENT,%d,%d,%d,%d,%d,'%s'\n",parent_inode_num, accumulate_offset - buf_u16, temp_entry -> inode, temp_entry ->rec_len, temp_entry->name_len, temp_entry ->name);
     
   }
  }
@@ -416,7 +416,7 @@ void inode_summary()
         if (c== 'd') {
           for (k = 0; k< 12; k++) {
             int block_temp_num = inode_array[j].i_block[k];
-            directory_block_info( block_temp_num, j+1, 0 );
+            directory_block_info( block_temp_num, j+1 );
             }
         }
 
@@ -457,6 +457,7 @@ void single_indirect (int parent_block_num, int parent_inode_num, int file_num_o
       int file_num = file_num_offset + i + 1 ;// 11 direct file
       if (new_block_num == 0) continue;
       fprintf(stdout, "INDIRECT,%d,1,%d,%d,%d\n",parent_inode_num,file_num,parent_block_num,new_block_num);
+      //directory_block_info( parent_block_num, parent_inode_num );
     }
 }
 
