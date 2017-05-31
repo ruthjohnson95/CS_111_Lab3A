@@ -1,3 +1,23 @@
-# NAME: Ruth Johnson
-# EMAIL: ruthjohnson@ucla.edu
-# ID: 704275412
+# NAME: Ruth Johnson, Emily Chen
+# EMAIL: ruthjohnson@ucla.edu, emilyqychen@g.ucla.edu
+# ID: 704275412, 304682182
+
+Partner: Emily Chen (304682182)
+
+Files:
+lab3a.c - source code with implementations for file system summary 
+ext2_fs.h - header file that defines the format of the EXT2 file system
+Makefile - 
+README - this file 
+
+Resources:
+Disc 1b slides 
+
+http://www.nongnu.org/ext2-doc/ext2.html
+
+http://man7.org/linux/man-pages/man2/pread.2.html
+
+http://man7.org/linux/man-pages/man8/debugfs.8.html
+
+Misc Notes:
+0 late days 
