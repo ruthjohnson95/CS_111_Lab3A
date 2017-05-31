@@ -201,29 +201,29 @@ void free_blocks_summary()
       int j;
       int block_size = EXT2_MIN_BLOCK_SIZE << super_block.s_log_block_size; 
       for(j=0; j < block_size;j++)
-	{
-	  int offset = group_desc.bg_block_bitmap * block_size + j;
-	  pread(fd, &buffer_8, 1, offset);
-	  int8_t bitmask = 1; 
-	  // iterate through the byte
-	  int k;
-	  for(k=1; k<=8; k++)
-	    {
-	      int result = buffer_8 & bitmask; 
-	      //	      fprintf(stderr, "Result: %d\n", result); 
-	      // check if free ( == 0)
-	      if(result == 0)
-		{
-		  /* number of the free block */ 
-		  int block_num = (j*8)+k+(i*super_block.s_blocks_per_group); 
-		  fprintf(stdout, "BFREE,%d\n", block_num); 
-		}
-	      // move bitmask down a bit 
-	      bitmask = bitmask << 1; 
+  {
+    int offset = group_desc.bg_block_bitmap * block_size + j;
+    pread(fd, &buffer_8, 1, offset);
+    int8_t bitmask = 1; 
+    // iterate through the byte
+    int k;
+    for(k=1; k<=8; k++)
+      {
+        int result = buffer_8 & bitmask; 
+        //        fprintf(stderr, "Result: %d\n", result); 
+        // check if free ( == 0)
+        if(result == 0)
+    {
+      /* number of the free block */ 
+      int block_num = (j*8)+k+(i*super_block.s_blocks_per_group); 
+      fprintf(stdout, "BFREE,%d\n", block_num); 
+    }
+        // move bitmask down a bit 
+        bitmask = bitmask << 1; 
 
-	    }
+      }
 
-	}
+  }
       
     }
 }
@@ -270,121 +270,6 @@ void free_inode_summary()
     }
 }
 
-void inode_summary()
-{  
-  int num_inodes = super_block.s_inodes_count;
-  int i,j;
-
-  inode_array = malloc (sizeof(struct ext2_inode) * num_inodes);
-  validInodeIndex_array = malloc (sizeof(int)*num_inodes);
-  validDirectoryIndex_array = malloc (sizeof(int)*num_inodes);
-
-  inode_array = malloc (sizeof(struct ext2_inode) * num_inodes);
-  validInodeIndex_array = malloc (sizeof(int)*num_inodes);
-  validDirectoryIndex_array = malloc (sizeof(int)*num_inodes);
-
-  for(i=0; i<n_groups; i++) {
-    // TODOS -- change
-    for (j=0; j< num_inodes; j++) {
-
-      __u32 block_size = EXT2_MIN_BLOCK_SIZE << super_block.s_log_block_size;
-      int offset = ext2_group_desc_arr[i].bg_inode_table * block_size + j* super_block.s_inode_size ;
-
-      //get link count -- 7
-      pread(fd, &buf_u16, 2, offset+26);
-      inode_array[j].i_links_count= buf_u16;
-
-      // get mode  -- 4
-      pread(fd, &buf_u16, 2, offset);
-      inode_array[j].i_mode = buf_u16 & 0x01FF;
-      
-
-      if (inode_array[j].i_mode != 0 && inode_array[j].i_links_count!=0) {
-
-	char c; 
-	if ((buf_u16 & 0x8000) )
-          {
-            c = 'f';
-	    validInodeIndex_array[validInodeCount] = j;
-	    validInodeCount ++;
-
-          }
-	else if ((buf_u16 & 0xA000)) {
-	  c = 's';
-	}
-	else if (buffer_16 & 0x4000){
-	  c = 'd';
-	  validDirectoryIndex_array[validDirecotyCount] = j;
-	  validDirecotyCount ++;
-
-	  validInodeIndex_array[validInodeCount] = j;
-	  validInodeCount ++;
-	}
-	else {
-	  c = '?';
-	}
-
-
-	//getowner -- 5
-	pread(fd, &buf_u16, 2, offset+2);
-	inode_array[j].i_uid = buf_u16;
-
-	// get group --6
-	pread(fd, &buf_u16, 2, offset+24);
-	inode_array[j].i_gid = buf_u16;
-
-	// get time of last I-node change (mm/dd/yy hh:mm:ss, GMT) -- 8
-	pread(fd, &buf_u32, 4, offset+12);
-	inode_array[j].i_ctime = buf_u32;
-	char change_time[80];
-	time_t c_rawtime = (time_t)buf_u32;
-	strftime (change_time,80,"%D %T",gmtime(&c_rawtime));
-      
-	// get time of modification time (mm/dd/yy hh:mm:ss, GMT) -- 9
-	pread(fd, &buf_u32, 4, offset+16);
-	inode_array[j].i_mtime = buf_u32;
-	char mod_time[80];
-	time_t m_rawtime = (time_t)buf_u32;     
-	strftime (mod_time,80,"%D %T",gmtime(&m_rawtime));
-          
-	// get time of last access -- 10
-	pread(fd, &buf_u32, 4, offset+8);
-	inode_array[j].i_atime = buf_u32;
-	char acc_time[80];
-	time_t a_rawtime = (time_t)buf_u32;
-	struct tm timeinfo; 
-	gmtime_r(&a_rawtime, &timeinfo);
-	strftime (acc_time,80,"%D %T",&timeinfo);
-  
-	// get file size (decimal) -- 11
-	pread(fd, &buf_s32, 4, offset+4);
-	inode_array[j].i_size = buf_s32;
-          
-	// get number of blocks (decimal) --12
-	pread(fd, &buf_s32, 4, offset+28);
-	inode_array[j].i_blocks = buf_s32;
-
-	fprintf(stdout, "%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", j+1,c, inode_array[j].i_mode, inode_array[j].i_uid , inode_array[j].i_gid,inode_array[j].i_links_count, change_time, mod_time,acc_time,inode_array[j].i_size, inode_array[j].i_blocks  );
-
-	//print blocks information 
-	int m = 0;
-	pread(fd, &buf_s32, 4, offset+40);
-	//inode_array[j].i_block = buf_s32;
-	for (m=0; m <15; m++){
-	  pread(fd, &buf_s32, 4, offset+40 + m*4);
-	  inode_array[j].i_block[m] = buf_s32;
-	  fprintf(stdout, ",%d", inode_array[j].i_block[m]);
-	}
-	
-	fprintf(stdout, "\n");
-      }
-      
-    }
-    
-  }
-  
-}
-
 
 void directory_block_info (int block_num, int parent_inode_num, int global_offset){
 {
@@ -419,24 +304,215 @@ void directory_block_info (int block_num, int parent_inode_num, int global_offse
   }
  }
 }
- void directory_summary() {
 
-   int i, m;
-   for (i =0; i < validDirecotyCount ; i ++){
+void inode_summary()
+{  
+  int num_inodes = super_block.s_inodes_count;
+  int i,j;
 
-     for (m = 0; m< 12; m++) {
+  inode_array = malloc (sizeof(struct ext2_inode) * num_inodes);
+  validInodeIndex_array = malloc (sizeof(int)*num_inodes);
+  validDirectoryIndex_array = malloc (sizeof(int)*num_inodes);
 
-       int block_num = inode_array[validDirectoryIndex_array[i]].i_block[m];
-       directory_block_info( block_num, validDirectoryIndex_array[i]+1, 0 );
-     }
+  inode_array = malloc (sizeof(struct ext2_inode) * num_inodes);
+  validInodeIndex_array = malloc (sizeof(int)*num_inodes);
+  validDirectoryIndex_array = malloc (sizeof(int)*num_inodes);
+
+  for(i=0; i<n_groups; i++) {
+    // TODOS -- change
+    for (j=0; j< num_inodes; j++) {
+
+      __u32 block_size = EXT2_MIN_BLOCK_SIZE << super_block.s_log_block_size;
+      int offset = ext2_group_desc_arr[i].bg_inode_table * block_size + j* super_block.s_inode_size ;
+
+      //get link count -- 7
+      pread(fd, &buf_u16, 2, offset+26);
+      inode_array[j].i_links_count= buf_u16;
+
+      // get mode  -- 4
+      pread(fd, &buf_u16, 2, offset);
+      inode_array[j].i_mode = buf_u16 & 0x01FF;
+      
+
+      if (inode_array[j].i_mode != 0 && inode_array[j].i_links_count!=0) {
+
+        char c; 
+        if ((buf_u16 & 0x8000) )
+        {
+            c = 'f';
+            validInodeIndex_array[validInodeCount] = j;
+            validInodeCount ++;
+
+        }
+        else if ((buf_u16 & 0xA000)) {
+          c = 's';
+        }
+        else if (buf_u16 & 0x4000){
+          c = 'd';
+          validDirectoryIndex_array[validDirecotyCount] = j;
+          validDirecotyCount ++;
+
+          validInodeIndex_array[validInodeCount] = j;
+          validInodeCount ++;
+        }
+        else {
+          c = '?';
+        }
+
+
+        //getowner -- 5
+        pread(fd, &buf_u16, 2, offset+2);
+        inode_array[j].i_uid = buf_u16;
+
+        // get group --6
+        pread(fd, &buf_u16, 2, offset+24);
+        inode_array[j].i_gid = buf_u16;
+
+        // get time of last I-node change (mm/dd/yy hh:mm:ss, GMT) -- 8
+        pread(fd, &buf_u32, 4, offset+12);
+        inode_array[j].i_ctime = buf_u32;
+        char change_time[80];
+        time_t c_rawtime = (time_t)buf_u32;
+        strftime (change_time,80,"%D %T",gmtime(&c_rawtime));
+            
+        // get time of modification time (mm/dd/yy hh:mm:ss, GMT) -- 9
+        pread(fd, &buf_u32, 4, offset+16);
+        inode_array[j].i_mtime = buf_u32;
+        char mod_time[80];
+        time_t m_rawtime = (time_t)buf_u32;     
+        strftime (mod_time,80,"%D %T",gmtime(&m_rawtime));
+                
+        // get time of last access -- 10
+        pread(fd, &buf_u32, 4, offset+8);
+        inode_array[j].i_atime = buf_u32;
+        char acc_time[80];
+        time_t a_rawtime = (time_t)buf_u32;
+        struct tm timeinfo; 
+        gmtime_r(&a_rawtime, &timeinfo);
+        strftime (acc_time,80,"%D %T",&timeinfo);
+        
+        // get file size (decimal) -- 11
+        pread(fd, &buf_s32, 4, offset+4);
+        inode_array[j].i_size = buf_s32;
+                
+        // get number of blocks (decimal) --12
+        pread(fd, &buf_s32, 4, offset+28);
+        inode_array[j].i_blocks = buf_s32;
+
+        fprintf(stdout, "INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", j+1,c, inode_array[j].i_mode, inode_array[j].i_uid , inode_array[j].i_gid,inode_array[j].i_links_count, change_time, mod_time,acc_time,inode_array[j].i_size, inode_array[j].i_blocks  );
+
+        //print blocks information 
+        int m = 0;
+        pread(fd, &buf_s32, 4, offset+40);
+        //inode_array[j].i_block = buf_s32;
+        for (m=0; m <15; m++){
+          pread(fd, &buf_s32, 4, offset+40 + m*4);
+          inode_array[j].i_block[m] = buf_s32;
+          fprintf(stdout, ",%d", inode_array[j].i_block[m]);
+        }
+        
+        fprintf(stdout, "\n");
+        int k = 0;
+        if (c== 'd') {
+          for (k = 0; k< 12; k++) {
+            int block_temp_num = inode_array[j].i_block[k];
+            directory_block_info( block_temp_num, j+1, 0 );
+            }
+        }
+
+
+      } // if inodes are valid 
+      
+    } // all inodes
     
-   }
- }
+  }//n groups 
+  
+}
 
+
+ // void directory_summary() {
+
+ //   int i, m;
+ //   for (i =0; i < validDirecotyCount ; i ++){
+
+ //     for (m = 0; m < 12; m++) {
+
+ //       int block_num = inode_array[validDirectoryIndex_array[i]].i_block[m];
+ //       directory_block_info( block_num, validDirectoryIndex_array[i]+1, 0 );
+ //     }
+    
+ //   }
+ // }
+
+void single_indirect (int parent_block_num, int parent_inode_num, int file_num_offset){
+   //int data_block_cnt = superblock.block_size/4;
+  __u32 block_size = EXT2_MIN_BLOCK_SIZE << super_block.s_log_block_size;
+  int data_block_cnt = block_size/4;
+
+   int i;
+   for (i =0; i < data_block_cnt; i ++){
+      int offset = parent_block_num * block_size + i*4; // offset of the block number
+      pread(fd, &buf_u32, 4, offset);
+      int new_block_num = buf_u32;
+      int file_num = file_num_offset + i + 1 ;// 11 direct file
+      if (new_block_num == 0) continue;
+      fprintf(stdout, "INDIRECT,%d,1,%d,%d,%d\n",parent_inode_num,file_num,parent_block_num,new_block_num);
+    }
+}
+
+void doubly_indirect (int parent_block_num, int parent_inode_num, int file_num_offset) {
+  //int data_block_cnt = superblock.block_size/4;
+  __u32 block_size = EXT2_MIN_BLOCK_SIZE << super_block.s_log_block_size;
+  int data_block_cnt = block_size/4;
+  int i;
+  for (i =0; i < data_block_cnt; i ++){
+    int offset = parent_block_num * block_size + i*4; // offset of the block number
+    pread(fd, &buf_u32, 4, offset);
+    int new_block_num = buf_u32;
+    int file_num = file_num_offset + i*data_block_cnt + 1;
+    if (new_block_num == 0) continue;
+    fprintf(stdout, "INDIRECT,%d,2,%d,%d,%d\n",parent_inode_num,file_num,parent_block_num,new_block_num);
+    single_indirect(new_block_num,parent_inode_num,file_num-1);
+  }
+
+}
+
+void tripply_indirect (int parent_block_num, int parent_inode_num, int file_num_offset) {
+  
+  __u32 block_size = EXT2_MIN_BLOCK_SIZE << super_block.s_log_block_size;
+  int data_block_cnt = block_size/4;
+  int i;
+  for (i =0; i < data_block_cnt; i++){
+    int offset = parent_block_num * block_size + i*4; // offset of the block number
+    pread(fd, &buf_u32, 4, offset);
+    int new_block_num = buf_u32;
+    int file_num = file_num_offset + i*data_block_cnt*data_block_cnt + 1;
+    if (new_block_num == 0) continue;
+    fprintf(stdout, "INDIRECT,%d,2,%d,%d,%d\n",parent_inode_num,file_num,parent_block_num,new_block_num);
+    doubly_indirect(new_block_num,parent_inode_num,file_num-1);
+  }
+
+}
 
 void indirect_block_summary()
 {
-  // TODO 
+  __u32 block_size = EXT2_MIN_BLOCK_SIZE << super_block.s_log_block_size;
+  int data_block_cnt = block_size/4;
+  
+  int i, j;
+  for (i = 0; i < validInodeCount ; i ++){
+    // single indirect
+      int block_num = inode_array[validInodeIndex_array[i]].i_block[12];
+      single_indirect(block_num, validInodeIndex_array[i]+1,11);
+
+      //doubly indirect 
+      block_num = inode_array[validInodeIndex_array[i]].i_block[13];
+      doubly_indirect(block_num, validInodeIndex_array[i]+1,11+data_block_cnt);  
+
+      //tripply indirect
+      block_num = inode_array[validInodeIndex_array[i]].i_block[14];
+      tripply_indirect(block_num, validInodeIndex_array[i]+1,11+data_block_cnt+data_block_cnt*data_block_cnt);  
+  }
 }
 
 
@@ -460,8 +536,8 @@ int main(int argc, char **argv)
 
     if(fd < 0 )
       {
-	fprintf(stderr, "Error opening file: %s\n", strerror(errno)); 
-	exit(1); 
+  fprintf(stderr, "Error opening file: %s\n", strerror(errno)); 
+  exit(1); 
       }
 
   /* get summary of file system */ 
@@ -475,7 +551,7 @@ int main(int argc, char **argv)
 
   inode_summary();
 
-  directory_summary();
+  //directory_summary();
 
   indirect_block_summary(); 
 
